@@ -1,0 +1,23 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Users can read their own profile (for message count / unlock status)
+    // but can NEVER write it directly — messagesUsed and unlocked are only
+    // ever changed by the Cloud Functions (chat / redeemKey), which use the
+    // Admin SDK and bypass these rules entirely.
+    match /users/{uid} {
+      allow read: if request.auth != null && request.auth.uid == uid;
+      allow create: if request.auth != null && request.auth.uid == uid
+                    && request.resource.data.messagesUsed == 0
+                    && request.resource.data.unlocked == false;
+      allow update, delete: if false;
+    }
+
+    // Keys are never readable or writable directly by clients.
+    // All redemption goes through the redeemKey Cloud Function.
+    match /keys/{code} {
+      allow read, write: if false;
+    }
+  }
+}
